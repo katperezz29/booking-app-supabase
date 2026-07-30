@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/HomePage';
 import { AboutPage } from './components/AboutPage';
 import { AppointmentPage } from './components/AppointmentPage';
-import { ScheduleAdminPage } from './components/ScheduleAdminPage';
+import { AdministratorPage } from './components/AdministratorPage';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 
 export default function App() {
@@ -13,8 +13,36 @@ export default function App() {
   const [selectedServiceIdForBooking, setSelectedServiceIdForBooking] = useState<string | undefined>(undefined);
   const [supabaseModalOpen, setSupabaseModalOpen] = useState<boolean>(false);
 
+  // Parse path for URL-based navigation (/administrator, /about, /appointment)
+  useEffect(() => {
+    const syncPageFromPath = () => {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('administrator') || path.includes('admin')) {
+        setCurrentPage('administrator');
+      } else if (path.includes('about')) {
+        setCurrentPage('about');
+      } else if (path.includes('appointment') || path.includes('book')) {
+        setCurrentPage('appointment');
+      } else {
+        setCurrentPage('home');
+      }
+    };
+
+    syncPageFromPath();
+    window.addEventListener('popstate', syncPageFromPath);
+    return () => window.removeEventListener('popstate', syncPageFromPath);
+  }, []);
+
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
+    let path = '/';
+    if (page === 'about') path = '/about';
+    else if (page === 'appointment') path = '/appointment';
+    else if (page === 'administrator' || page === 'schedule-admin') path = '/administrator';
+
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -53,8 +81,8 @@ export default function App() {
           />
         )}
 
-        {currentPage === 'schedule-admin' && (
-          <ScheduleAdminPage
+        {(currentPage === 'administrator' || currentPage === 'schedule-admin') && (
+          <AdministratorPage
             onNavigate={handleNavigate}
             onOpenSupabaseModal={() => setSupabaseModalOpen(true)}
           />

@@ -1,4 +1,4 @@
-export type Page = 'home' | 'about' | 'appointment' | 'schedule-admin';
+export type Page = 'home' | 'about' | 'appointment' | 'administrator' | 'schedule-admin';
 
 export interface DurationOption {
   durationMinutes: number; // e.g. 30, 60, 90, 120

@@ -6,11 +6,25 @@ const metaEnv = (import.meta as any).env || {};
 const rawSupabaseUrl = (metaEnv.VITE_SUPABASE_URL || '').trim();
 const rawSupabaseAnonKey = (metaEnv.VITE_SUPABASE_ANON_KEY || '').trim();
 
-// Format URL if user forgot protocol
-const supabaseUrl = rawSupabaseUrl && !rawSupabaseUrl.startsWith('http')
-  ? `https://${rawSupabaseUrl}`
-  : rawSupabaseUrl;
+// Format URL & strip any trailing /rest/v1 or extra paths added by mistake
+let formattedUrl = rawSupabaseUrl;
+if (formattedUrl && !formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+  formattedUrl = `https://${formattedUrl}`;
+}
 
+if (formattedUrl) {
+  try {
+    const urlObj = new URL(formattedUrl);
+    // Extract base origin (e.g. "https://geqquinhxunzpzgcfarp.supabase.co")
+    formattedUrl = urlObj.origin;
+  } catch {
+    formattedUrl = formattedUrl
+      .replace(/\/rest\/v1\/?$/i, '')
+      .replace(/\/+$/, '');
+  }
+}
+
+const supabaseUrl = formattedUrl;
 const supabaseAnonKey = rawSupabaseAnonKey;
 
 export const isSupabaseConfigured = Boolean(
@@ -168,14 +182,15 @@ export async function fetchAppointments(dateFilter?: string): Promise<Appointmen
 export async function createAppointment(bookingData: Omit<AppointmentBooking, 'id' | 'createdAt'>): Promise<AppointmentBooking> {
   const newBooking: AppointmentBooking = {
     ...bookingData,
-    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `bk-${Date.now()}`,
+    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[10]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)),
     createdAt: new Date().toISOString()
   };
 
   if (supabase) {
     try {
-      const dbPayload = {
-        id: newBooking.id,
+      const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newBooking.id);
+
+      const dbPayload: Record<string, any> = {
         booking_ref: newBooking.bookingRef,
         customer_name: newBooking.customerName,
         customer_phone: newBooking.customerPhone,
@@ -196,9 +211,15 @@ export async function createAppointment(bookingData: Omit<AppointmentBooking, 'i
         created_at: newBooking.createdAt
       };
 
-      const { error } = await supabase.from('appointments').insert([dbPayload]);
+      if (isValidUuid) {
+        dbPayload.id = newBooking.id;
+      }
+
+      const { data, error } = await supabase.from('appointments').insert([dbPayload]).select();
       if (error) {
-        console.error('Supabase insert error, saving locally too:', error.message);
+        console.error('Supabase insert error, saving locally too:', error.message, error.details);
+      } else if (data && data[0]) {
+        newBooking.id = data[0].id;
       }
     } catch (err) {
       console.error('Supabase save failed:', err);

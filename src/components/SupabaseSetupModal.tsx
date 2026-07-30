@@ -93,27 +93,48 @@ export const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({ isOpen, 
 
         {/* Step 1: Copy SQL Schema */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-serif font-bold text-[#3D2C22] text-sm flex items-center gap-1.5">
-              <Code2 className="w-4 h-4 text-[#8B5A2B]" />
-              1. Supabase SQL Table Schema Script:
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-serif font-bold text-[#3a3a32] text-sm flex items-center gap-1.5">
+              <Code2 className="w-4 h-4 text-[#8c9c84]" />
+              1. How to Run Database Migration in Supabase:
             </h3>
 
-            <button
-              onClick={handleCopySql}
-              className="px-3 py-1 rounded-lg bg-[#8B5A2B] hover:bg-[#724821] text-white text-xs font-semibold flex items-center gap-1 transition-colors"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>{copiedSql ? 'Copied SQL!' : 'Copy SQL Script'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopySql}
+                className="px-3.5 py-1.5 rounded-xl bg-[#8c9c84] hover:bg-[#6b7a64] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>{copiedSql ? 'Copied SQL to Clipboard!' : 'Copy Migration SQL'}</span>
+              </button>
+
+              <a
+                href="https://supabase.com/dashboard/project/_/sql/new"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-[#4a4a40] hover:bg-[#3a3a32] text-white text-xs font-medium flex items-center gap-1 transition-colors"
+              >
+                <span>Open SQL Editor</span>
+                <ExternalLink className="w-3 h-3 text-[#8c9c84]" />
+              </a>
+            </div>
           </div>
 
-          <pre className="bg-stone-900 text-emerald-400 p-4 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-48 scrollbar-thin">
+          <div className="bg-[#f2f2eb] p-3 rounded-2xl border border-[#e5e5db] text-xs space-y-1 text-[#3a3a32]">
+            <p className="font-semibold text-[#6b7a64] uppercase tracking-wider text-[10px]">Steps to Execute Schema Migration:</p>
+            <ol className="list-decimal list-inside space-y-1 text-[11px] opacity-90">
+              <li>Click <strong>Copy Migration SQL</strong> above.</li>
+              <li>Open your Supabase Dashboard -&gt; <strong>SQL Editor</strong> -&gt; <strong>New Query</strong>.</li>
+              <li>Paste the script into the editor and click <strong>Run</strong> (▶).</li>
+            </ol>
+            <p className="text-[10px] text-[#8c9c84] italic pt-1">
+              * Note: Database table creation (DDL) requires Supabase SQL Editor privileges and cannot be executed directly via client API keys for security reasons.
+            </p>
+          </div>
+
+          <pre className="bg-[#1f1f1a] text-[#8c9c84] p-4 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-48 scrollbar-thin border border-[#3a3a32]">
             {sqlSchema}
           </pre>
-          <p className="text-[11px] text-stone-500">
-            Paste this SQL script into your <strong>Supabase Dashboard -&gt; SQL Editor</strong> and click "Run".
-          </p>
         </div>
 
         {/* Step 2: Vercel Environment Variables */}
@@ -130,6 +151,9 @@ export const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({ isOpen, 
             <p className="text-stone-800"><strong>VITE_SUPABASE_URL</strong>=https://your-project.supabase.co</p>
             <p className="text-stone-800"><strong>VITE_SUPABASE_ANON_KEY</strong>=your-anon-public-key</p>
           </div>
+          <p className="text-[11px] text-stone-500 italic">
+            * Note: Use the base <strong>Project URL</strong> (e.g. <code>https://xxx.supabase.co</code>). Do not attach <code>/rest/v1</code> at the end. (Our code now auto-sanitizes this for you as well!)
+          </p>
         </div>
 
         {/* Test Button & Result */}

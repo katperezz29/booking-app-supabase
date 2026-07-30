@@ -68,10 +68,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseModal 
               </li>
               <li>
                 <button 
-                  onClick={() => onNavigate('schedule-admin')} 
-                  className="hover:text-[#8c9c84] transition-colors flex items-center gap-1.5"
+                  onClick={() => onNavigate('administrator')} 
+                  className="hover:text-[#8c9c84] transition-colors flex items-center gap-1.5 opacity-75 hover:opacity-100"
                 >
-                  <ChevronRight className="w-3.5 h-3.5 text-[#8c9c84]" /> Therapist Schedule Admin
+                  <ChevronRight className="w-3.5 h-3.5 text-[#8c9c84]" /> Administrator Portal
                 </button>
               </li>
             </ul>

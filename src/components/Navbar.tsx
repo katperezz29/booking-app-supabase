@@ -17,11 +17,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isAdminPage = currentPage === 'administrator' || currentPage === 'schedule-admin';
+
+  // Public Nav Items (Staff Schedule & Supabase are hidden publicly)
   const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
     { page: 'home', label: 'Home', icon: <Sparkles className="w-4 h-4" /> },
     { page: 'about', label: 'About Spa', icon: <MapPin className="w-4 h-4" /> },
     { page: 'appointment', label: 'Book Appointment', icon: <Calendar className="w-4 h-4" /> },
-    { page: 'schedule-admin', label: 'Staff Schedule', icon: <Clock className="w-4 h-4" /> },
   ];
 
   return (
@@ -46,15 +48,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Phone className="w-3 h-3 text-[#8c9c84]" /> {SPA_PHONES[0]}
             </a>
-            <span className="text-[#6a6a60]">•</span>
-            <button
-              onClick={onOpenSupabaseModal}
-              className="flex items-center gap-1 text-xs bg-[#4a4a40] hover:bg-[#5c5c50] text-[#f2f2eb] px-2.5 py-1 rounded-md transition-all"
-              title="Database & Vercel deployment instructions"
-            >
-              <Database className="w-3 h-3 text-[#8c9c84]" />
-              <span>Supabase {isSupabaseConfigured ? 'Connected' : 'Setup'}</span>
-            </button>
+            
+            {/* Supabase Connection is ONLY shown when user is in the Administrator view */}
+            {isAdminPage && (
+              <>
+                <span className="text-[#6a6a60]">•</span>
+                <button
+                  onClick={onOpenSupabaseModal}
+                  className="flex items-center gap-1 text-xs bg-[#4a4a40] hover:bg-[#5c5c50] text-[#f2f2eb] px-2.5 py-1 rounded-md transition-all border border-[#6a6a60]"
+                  title="Database & Vercel deployment instructions"
+                >
+                  <Database className="w-3 h-3 text-[#8c9c84]" />
+                  <span>Supabase {isSupabaseConfigured ? 'Connected' : 'Setup'}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -164,12 +172,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
           <div className="pt-3 border-t border-[#e5e5db] flex items-center justify-between text-xs text-[#6b7a64]">
             <span>Pateros, Metro Manila</span>
-            <button
-              onClick={() => { onOpenSupabaseModal(); setMobileMenuOpen(false); }}
-              className="text-[#3a3a32] font-semibold underline flex items-center gap-1"
-            >
-              <Database className="w-3.5 h-3.5 text-[#8c9c84]" /> Database Setup
-            </button>
+            {isAdminPage && (
+              <button
+                onClick={() => { onOpenSupabaseModal(); setMobileMenuOpen(false); }}
+                className="text-[#3a3a32] font-semibold underline flex items-center gap-1"
+              >
+                <Database className="w-3.5 h-3.5 text-[#8c9c84]" /> Database Setup
+              </button>
+            )}
           </div>
         </div>
       )}
