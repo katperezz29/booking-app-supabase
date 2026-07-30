@@ -137,23 +137,31 @@ export const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({ isOpen, 
           </pre>
         </div>
 
-        {/* Step 2: Vercel Environment Variables */}
+        {/* Step 2: Vercel Environment Variables & SPA Routing */}
         <div className="space-y-2 pt-2 border-t border-[#E8DFC8]">
           <h3 className="font-serif font-bold text-[#3D2C22] text-sm flex items-center gap-1.5">
             <ExternalLink className="w-4 h-4 text-[#8B5A2B]" />
-            2. Vercel Environment Variables:
+            2. Vercel Environment & SPA Routing Setup:
           </h3>
           <p className="text-xs text-stone-600">
-            When uploading this repository to Vercel, add these 2 environment variables under <strong>Project Settings -&gt; Environment Variables</strong>:
+            When uploading this repository to Vercel:
           </p>
+
+          <ol className="list-disc list-inside space-y-1 text-xs text-stone-700">
+            <li>Add these environment variables under <strong>Project Settings -&gt; Environment Variables</strong>:</li>
+          </ol>
 
           <div className="space-y-1 font-mono text-xs bg-stone-100 p-3 rounded-xl border border-stone-200">
             <p className="text-stone-800"><strong>VITE_SUPABASE_URL</strong>=https://your-project.supabase.co</p>
             <p className="text-stone-800"><strong>VITE_SUPABASE_ANON_KEY</strong>=your-anon-public-key</p>
           </div>
-          <p className="text-[11px] text-stone-500 italic">
-            * Note: Use the base <strong>Project URL</strong> (e.g. <code>https://xxx.supabase.co</code>). Do not attach <code>/rest/v1</code> at the end. (Our code now auto-sanitizes this for you as well!)
+
+          <p className="text-[11px] text-stone-600 pt-1">
+            <strong>Direct URL Routing (/administrator, /appointment):</strong> We have included a root <code>vercel.json</code> file in your repository with SPA rewrite rules so deep links won't return 404 on Vercel:
           </p>
+          <pre className="bg-[#1f1f1a] text-emerald-400 p-2.5 rounded-xl text-[10px] font-mono">
+            {`{\n  "rewrites": [\n    { "source": "/(.*)", "destination": "/index.html" }\n  ]\n}`}
+          </pre>
         </div>
 
         {/* Test Button & Result */}
