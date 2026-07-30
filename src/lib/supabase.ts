@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AppointmentBooking, BookingStatus } from '../types';
+import { AppointmentBooking, BookingStatus, Therapist, TherapistStatus } from '../types';
 
 // Read env vars if present
 const metaEnv = (import.meta as any).env || {};
@@ -41,6 +41,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   : null;
 
 const STORAGE_KEY = 'mamahands_spa_appointments_v1';
+const THERAPISTS_STORAGE_KEY = 'mamahands_spa_therapists_v1';
 const REALTIME_CHANNEL_NAME = 'mamahands_booking_updates';
 
 // Setup BroadcastChannel for real-time multi-tab updates when running client-side / without Supabase
@@ -50,6 +51,80 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
     broadcastChannel = new BroadcastChannel(REALTIME_CHANNEL_NAME);
   } catch (e) {
     console.warn('BroadcastChannel initialization fallback:', e);
+  }
+}
+
+// Initial seed therapists with valid UUIDs
+const INITIAL_SEED_THERAPISTS: Therapist[] = [
+  {
+    id: 'a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d',
+    name: 'Elena Vance',
+    gender: 'Female',
+    phone: '+63 917 555 1234',
+    email: 'elena.vance@mamahands.com',
+    specialties: ['Deep Relaxation Massage', 'Swedish Massage', 'Aromatherapy'],
+    status: 'available',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'b2c3d4e5-f6a1-4b2c-9d3e-4f5a6b7c8d9e',
+    name: 'Sofia Rivera',
+    gender: 'Female',
+    phone: '+63 918 555 2345',
+    email: 'sofia.rivera@mamahands.com',
+    specialties: ['Ventosa Cupping', 'Holistic Scrub', 'Hot Stone Massage'],
+    status: 'available',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'c3d4e5f6-a1b2-4c3d-0e4f-5a6b7c8d9e0f',
+    name: 'Marcus De Leon',
+    gender: 'Male',
+    phone: '+63 919 555 3456',
+    email: 'marcus.deleon@mamahands.com',
+    specialties: ['Deep Tissue Massage', 'Foot Reflexology'],
+    status: 'on_leave',
+    leaveReason: 'Personal Leave',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'd4e5f6a1-b2c3-4d4e-1f5a-6b7c8d9e0f1a',
+    name: 'Ana Morales',
+    gender: 'Female',
+    phone: '+63 920 555 4567',
+    email: 'ana.morales@mamahands.com',
+    specialties: ['Swedish Massage', 'Ear Candling Therapy'],
+    status: 'available',
+    createdAt: new Date().toISOString()
+  }
+];
+
+// Helper to get local therapists
+export function getLocalTherapists(): Therapist[] {
+  if (typeof window === 'undefined') return INITIAL_SEED_THERAPISTS;
+  try {
+    const raw = localStorage.getItem(THERAPISTS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(THERAPISTS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_THERAPISTS));
+      return INITIAL_SEED_THERAPISTS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading local storage therapists:', err);
+    return INITIAL_SEED_THERAPISTS;
+  }
+}
+
+// Helper to save local therapists
+export function saveLocalTherapists(therapists: Therapist[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(THERAPISTS_STORAGE_KEY, JSON.stringify(therapists));
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({ type: 'THERAPISTS_UPDATED', timestamp: Date.now() });
+    }
+  } catch (err) {
+    console.error('Error saving local storage therapists:', err);
   }
 }
 
@@ -157,6 +232,8 @@ export async function fetchAppointments(dateFilter?: string): Promise<Appointmen
           bookingDate: item.booking_date,
           bookingTime: item.booking_time,
           therapistGenderPreference: item.therapist_gender_preference || 'No Preference',
+          therapistId: item.therapist_id || undefined,
+          therapistName: item.therapist_name || undefined,
           notes: item.notes || '',
           status: item.status || 'confirmed',
           createdAt: item.created_at
@@ -206,6 +283,8 @@ export async function createAppointment(bookingData: Omit<AppointmentBooking, 'i
         booking_date: newBooking.bookingDate,
         booking_time: newBooking.bookingTime,
         therapist_gender_preference: newBooking.therapistGenderPreference,
+        therapist_id: newBooking.therapistId || null,
+        therapist_name: newBooking.therapistName || null,
         notes: newBooking.notes || '',
         status: newBooking.status,
         created_at: newBooking.createdAt
@@ -247,6 +326,180 @@ export async function updateAppointmentStatus(id: string, status: BookingStatus)
   const current = getLocalBookings();
   const updated = current.map(b => b.id === id ? { ...b, status } : b);
   saveLocalBookings(updated);
+  return true;
+}
+
+/**
+ * Assign or reassign a therapist to an appointment
+ */
+export async function assignTherapistToAppointment(
+  appointmentId: string,
+  therapistId: string | null,
+  therapistName: string | null
+): Promise<boolean> {
+  if (supabase) {
+    try {
+      await supabase
+        .from('appointments')
+        .update({
+          therapist_id: therapistId,
+          therapist_name: therapistName
+        })
+        .eq('id', appointmentId);
+    } catch (err) {
+      console.error('Supabase assignTherapist error:', err);
+    }
+  }
+
+  const current = getLocalBookings();
+  const updated = current.map(b => 
+    b.id === appointmentId 
+      ? { ...b, therapistId: therapistId || undefined, therapistName: therapistName || undefined }
+      : b
+  );
+  saveLocalBookings(updated);
+  return true;
+}
+
+/**
+ * Fetch all therapists
+ */
+export async function fetchTherapists(): Promise<Therapist[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('therapists').select('*').order('name', { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          phone: item.phone,
+          email: item.email || '',
+          gender: item.gender || 'Female',
+          specialties: item.specialties || [],
+          status: item.status || 'available',
+          leaveReason: item.leave_reason || '',
+          createdAt: item.created_at
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase fetch therapists error, using local fallback:', err);
+    }
+  }
+
+  return getLocalTherapists();
+}
+
+/**
+ * Fetch a single therapist by UUID
+ */
+export async function fetchTherapistById(id: string): Promise<Therapist | null> {
+  if (!id) return null;
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('therapists').select('*').eq('id', id).single();
+      if (!error && data) {
+        return {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          email: data.email || '',
+          gender: data.gender || 'Female',
+          specialties: data.specialties || [],
+          status: data.status || 'available',
+          leaveReason: data.leave_reason || '',
+          createdAt: data.created_at
+        };
+      }
+    } catch (err) {
+      console.warn('Supabase fetch therapist by ID failed:', err);
+    }
+  }
+
+  const local = getLocalTherapists();
+  return local.find(t => t.id === id) || null;
+}
+
+/**
+ * Create a new therapist (with UUID primary key)
+ */
+export async function createTherapist(data: Omit<Therapist, 'id' | 'createdAt'>): Promise<Therapist> {
+  const newTherapist: Therapist = {
+    ...data,
+    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '20000000-2000-4000-8000-200000000000'.replace(/[20]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)),
+    createdAt: new Date().toISOString()
+  };
+
+  if (supabase) {
+    try {
+      const dbPayload = {
+        id: newTherapist.id,
+        name: newTherapist.name,
+        phone: newTherapist.phone,
+        email: newTherapist.email || null,
+        gender: newTherapist.gender,
+        specialties: newTherapist.specialties,
+        status: newTherapist.status,
+        leave_reason: newTherapist.leaveReason || null,
+        created_at: newTherapist.createdAt
+      };
+      const { data: resData, error } = await supabase.from('therapists').insert([dbPayload]).select();
+      if (error) {
+        console.error('Supabase insert therapist error:', error);
+      } else if (resData && resData[0]) {
+        newTherapist.id = resData[0].id;
+      }
+    } catch (err) {
+      console.error('Supabase createTherapist exception:', err);
+    }
+  }
+
+  const current = getLocalTherapists();
+  saveLocalTherapists([newTherapist, ...current]);
+  return newTherapist;
+}
+
+/**
+ * Update an existing therapist
+ */
+export async function updateTherapist(id: string, updates: Partial<Therapist>): Promise<boolean> {
+  if (supabase) {
+    try {
+      const dbUpdates: Record<string, any> = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+      if (updates.email !== undefined) dbUpdates.email = updates.email;
+      if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+      if (updates.specialties !== undefined) dbUpdates.specialties = updates.specialties;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.leaveReason !== undefined) dbUpdates.leave_reason = updates.leaveReason;
+
+      await supabase.from('therapists').update(dbUpdates).eq('id', id);
+    } catch (err) {
+      console.error('Supabase updateTherapist error:', err);
+    }
+  }
+
+  const current = getLocalTherapists();
+  const updated = current.map(t => t.id === id ? { ...t, ...updates } : t);
+  saveLocalTherapists(updated);
+  return true;
+}
+
+/**
+ * Delete a therapist by UUID
+ */
+export async function deleteTherapist(id: string): Promise<boolean> {
+  if (supabase) {
+    try {
+      await supabase.from('therapists').delete().eq('id', id);
+    } catch (err) {
+      console.error('Supabase deleteTherapist error:', err);
+    }
+  }
+
+  const current = getLocalTherapists();
+  const filtered = current.filter(t => t.id !== id);
+  saveLocalTherapists(filtered);
   return true;
 }
 
@@ -303,7 +556,27 @@ export function subscribeToAppointments(onUpdate: () => void) {
  * Get SQL schema for Supabase table initialization
  */
 export function getSupabaseSqlSchema(): string {
-  return `-- Create MamaHands Spa Appointments Table in Supabase
+  return `-- Create Therapists Table in Supabase (UUID Primary Key)
+CREATE TABLE IF NOT EXISTS public.therapists (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255),
+    gender VARCHAR(20) DEFAULT 'Female',
+    specialties JSONB DEFAULT '[]'::jsonb,
+    status VARCHAR(50) DEFAULT 'available',
+    leave_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for Therapists
+ALTER TABLE public.therapists ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select on therapists" ON public.therapists FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on therapists" ON public.therapists FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on therapists" ON public.therapists FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete on therapists" ON public.therapists FOR DELETE USING (true);
+
+-- Create MamaHands Spa Appointments Table in Supabase
 CREATE TABLE IF NOT EXISTS public.appointments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     booking_ref VARCHAR(20) NOT NULL,
@@ -321,30 +594,27 @@ CREATE TABLE IF NOT EXISTS public.appointments (
     booking_date DATE NOT NULL,
     booking_time VARCHAR(20) NOT NULL,
     therapist_gender_preference VARCHAR(50) DEFAULT 'No Preference',
+    therapist_id UUID REFERENCES public.therapists(id) ON DELETE SET NULL,
+    therapist_name VARCHAR(255),
     notes TEXT,
     status VARCHAR(50) DEFAULT 'confirmed',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add missing columns if appointments table already existed
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS therapist_id UUID;
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS therapist_name VARCHAR(255);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 
--- Allow public inserts (for customer bookings)
-CREATE POLICY "Allow public insert to appointments" 
-ON public.appointments FOR INSERT 
-WITH CHECK (true);
+-- Policies for Appointments
+CREATE POLICY "Allow public insert to appointments" ON public.appointments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public read of appointments" ON public.appointments FOR SELECT USING (true);
+CREATE POLICY "Allow public update of appointments" ON public.appointments FOR UPDATE USING (true);
 
--- Allow public read (for real-time slot checking)
-CREATE POLICY "Allow public read of appointments" 
-ON public.appointments FOR SELECT 
-USING (true);
-
--- Allow public update (for status changes/admin management)
-CREATE POLICY "Allow public update of appointments" 
-ON public.appointments FOR UPDATE 
-USING (true);
-
--- Enable Realtime for the table
+-- Enable Realtime for both tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.appointments;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.therapists;
 `;
 }

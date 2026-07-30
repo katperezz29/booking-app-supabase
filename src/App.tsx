@@ -6,22 +6,35 @@ import { HomePage } from './components/HomePage';
 import { AboutPage } from './components/AboutPage';
 import { AppointmentPage } from './components/AppointmentPage';
 import { AdministratorPage } from './components/AdministratorPage';
+import { TherapistPortalPage } from './components/TherapistPortalPage';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedServiceIdForBooking, setSelectedServiceIdForBooking] = useState<string | undefined>(undefined);
+  const [selectedTherapistId, setSelectedTherapistId] = useState<string>('');
   const [supabaseModalOpen, setSupabaseModalOpen] = useState<boolean>(false);
 
-  // Parse path for URL-based navigation (/administrator, /about, /appointment)
+  // Parse path for URL-based navigation (/administrator, /about, /appointment, /${uuid})
   useEffect(() => {
     const syncPageFromPath = () => {
-      const path = window.location.pathname.toLowerCase();
-      if (path.includes('administrator') || path.includes('admin')) {
+      const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      const pathLower = rawPath.toLowerCase();
+
+      if (UUID_REGEX.test(rawPath)) {
+        setSelectedTherapistId(rawPath);
+        setCurrentPage('therapist-portal');
+      } else if (pathLower.startsWith('therapist/') && UUID_REGEX.test(rawPath.replace('therapist/', ''))) {
+        const id = rawPath.replace('therapist/', '');
+        setSelectedTherapistId(id);
+        setCurrentPage('therapist-portal');
+      } else if (pathLower.includes('administrator') || pathLower.includes('admin')) {
         setCurrentPage('administrator');
-      } else if (path.includes('about')) {
+      } else if (pathLower.includes('about')) {
         setCurrentPage('about');
-      } else if (path.includes('appointment') || path.includes('book')) {
+      } else if (pathLower.includes('appointment') || pathLower.includes('book')) {
         setCurrentPage('appointment');
       } else {
         setCurrentPage('home');
@@ -33,12 +46,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', syncPageFromPath);
   }, []);
 
-  const handleNavigate = (page: Page) => {
+  const handleNavigate = (page: Page, therapistId?: string) => {
     setCurrentPage(page);
     let path = '/';
     if (page === 'about') path = '/about';
     else if (page === 'appointment') path = '/appointment';
     else if (page === 'administrator' || page === 'schedule-admin') path = '/administrator';
+    else if (page === 'therapist-portal' && (therapistId || selectedTherapistId)) {
+      const id = therapistId || selectedTherapistId;
+      setSelectedTherapistId(id);
+      path = `/${id}`;
+    }
 
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
@@ -85,6 +103,13 @@ export default function App() {
           <AdministratorPage
             onNavigate={handleNavigate}
             onOpenSupabaseModal={() => setSupabaseModalOpen(true)}
+          />
+        )}
+
+        {currentPage === 'therapist-portal' && (
+          <TherapistPortalPage
+            therapistId={selectedTherapistId}
+            onNavigate={handleNavigate}
           />
         )}
       </main>

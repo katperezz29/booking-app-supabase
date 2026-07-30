@@ -1,4 +1,18 @@
-export type Page = 'home' | 'about' | 'appointment' | 'administrator' | 'schedule-admin';
+export type Page = 'home' | 'about' | 'appointment' | 'administrator' | 'schedule-admin' | 'therapist-portal';
+
+export type TherapistStatus = 'available' | 'on_leave' | 'busy';
+
+export interface Therapist {
+  id: string; // UUID primary key
+  name: string;
+  phone: string;
+  email?: string;
+  gender: 'Female' | 'Male';
+  specialties: string[];
+  status: TherapistStatus;
+  leaveReason?: string;
+  createdAt?: string;
+}
 
 export interface DurationOption {
   durationMinutes: number; // e.g. 30, 60, 90, 120
@@ -53,6 +67,8 @@ export interface AppointmentBooking {
   bookingDate: string; // YYYY-MM-DD
   bookingTime: string; // e.g. "02:30 PM"
   therapistGenderPreference: 'Female' | 'Male' | 'No Preference';
+  therapistId?: string;
+  therapistName?: string;
   notes?: string;
   status: BookingStatus;
   createdAt: string;
