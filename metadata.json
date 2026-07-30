@@ -1,0 +1,6 @@
+{
+  "name": "MamaHands Aesthetics & Spa",
+  "description": "Customer appointment booking system and spa schedule manager for MamaHands Aesthetics & Spa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
